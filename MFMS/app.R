@@ -58,6 +58,16 @@ pull_data <- function(statement) {
     
 }
 
+theme_mfms <- function() {
+    
+    theme_minimal() +
+    theme(
+        panel.grid = element_blank()
+        ,legend.position = "none"
+    )
+    
+}
+
 ui <- navbarPage(
     "Minimum Fat, Maximum Stats",
     theme = shinytheme("simplex"),
@@ -206,6 +216,35 @@ ui <- navbarPage(
                 )
             )
         )
+    ),
+    
+    tabPanel(
+        "Progress",
+        fluidPage(
+            
+            sidebarLayout(
+                sidebarPanel(
+                    width = 2,
+                    hr(),
+                    tags$img(width = "100%", src = "neldo.jpg"),
+                    hr()
+                ),
+                
+                mainPanel(
+                    width = 10,
+                    column(
+                        width = 3,
+                        h2("Progress", align = "center"),
+                        hr(),
+                        plotOutput("prog_bar", height = 700)
+                    ),
+                    column(
+                        width = 9
+                    )
+                )
+            )
+            
+        )
     )
 
 )
@@ -304,6 +343,67 @@ server <- function(input, output, session) {
                     ,Submitted
                 )
         )
+        
+    })
+    
+    output$prog_bar <- renderPlot({
+        
+        start <- rv$entries %>% 
+            filter(
+                Metric == "Weight"
+            ) %>% 
+            group_by(
+                UserID
+            ) %>% 
+            arrange(
+                desc(ImportTimestamp)
+            ) %>% 
+            slice(
+                n()
+            ) %>% 
+            mutate(
+                StartProgress = "Beginning Weight"
+            )
+        
+        progress <- rv$entries %>% 
+            filter(
+                Metric == "Weight"
+            ) %>% 
+            group_by(
+                UserID
+            ) %>% 
+            arrange(
+                desc(ImportTimestamp)
+            ) %>% 
+            slice(
+                1
+            ) %>% 
+            mutate(
+                StartProgress = "Current Progress"
+            )
+        
+        dat <- rbind(start, progress)
+        
+        dat %>% 
+            group_by(
+                StartProgress
+            ) %>% 
+            summarise(
+                TotalWeight = sum(Value, na.rm = T)
+            ) %>% 
+            ggplot() +
+            geom_col(aes(x = 1, y = TotalWeight, fill = StartProgress), color = "white") +
+            theme_mfms() +
+            theme(
+                strip.text = element_text(size = 14, face = "bold")
+            ) +
+            scale_fill_manual(
+                values = c(
+                    "Beginning Weight" = "navy"
+                    ,"Current Progress" = "goldenrod"
+                )
+            ) +
+            facet_grid(.~StartProgress)
         
     })
 
