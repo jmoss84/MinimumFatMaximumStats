@@ -47,17 +47,21 @@ pull_data <- function(statement) {
         timeout = 5
     )
     
-    dbGetQuery(
+    dat <- dbGetQuery(
         conn = con_mfms,
         statement = statement
     )
     
     dbDisconnect(con_mfms)
     
+    return(dat)
+    
 }
 
 ui <- navbarPage(
     "Minimum Fat, Maximum Stats",
+    theme = shinytheme("simplex"),
+    collapsible = T,
     
     tabPanel(
         "Check-In",
@@ -196,7 +200,7 @@ ui <- navbarPage(
                             width = 12,
                             h2("Submission Table", align = "center"),
                             hr(),
-                            dataTableOutput("")
+                            dataTableOutput("ent_tbl_activity")
                         )
                     )
                 )
@@ -212,17 +216,29 @@ server <- function(input, output, session) {
         
         entries = pull_data("SELECT * FROM dbo.MFMSEntries;"),
         users = pull_data("SELECT * FROM dbo.MFMSUsers;"),
-        activity = pull_data("SELECT * FROM dbo.MFMSActivity;")
+        activity = pull_data("SELECT * FROM dbo.vw_MFMSActivity;")
         
     )
     
     refresh <- function() {
         
-        entries <- pull_data("SELECT * FROM dbo.MFMSEntries;")
-        users <- pull_data("SELECT * FROM dbo.MFMSUsers;")
-        activity <- pull_data("SELECT * FROM dbo.MFMSActivity;")
+        rv$entries <- pull_data("SELECT * FROM dbo.MFMSEntries;")
+        rv$users <- pull_data("SELECT * FROM dbo.MFMSUsers;")
+        rv$activity <- pull_data("SELECT * FROM dbo.vw_MFMSActivity;")
+        
+        updateTextInput(session, "ent_id", value = "")
+        updateDateInput(session, "ent_date", value = today())
+        updateNumericInput(session, "ent_weight", value = "")
+        updateNumericInput(session, "ent_bmi", value = "")
+        updateNumericInput(session, "ent_neck", value = "")
+        updateNumericInput(session, "ent_chest", value = "")
+        updateNumericInput(session, "ent_waist", value = "")
+        updateNumericInput(session, "ent_biceps", value = "")
+        updateNumericInput(session, "ent_thigh", value = "")
         
     }
+    
+    refresh()
     
     observeEvent(input$ent_go_submit, {
         
@@ -235,10 +251,59 @@ server <- function(input, output, session) {
             filter(
                 !is.na(Value)
                 ,Value != ""
-                ,UserID %in% users$UserID
+                ,UserID %in% rv$users$UserID
             )
         
-        push_data(conf$tables$entries, data)
+        if (length(data$UserID) > 0) {
+            
+            push_data(conf$tables$entries, data)
+            
+            act <- data %>% 
+                select(
+                    UserID
+                ) %>% 
+                distinct()
+            
+            push_data(conf$tables$activity, act)
+            
+        } else {
+            
+            showModal(
+                modalDialog(
+                    title = "Invalid Data Entry",
+                    "Please check that your ID is correct and that at least one field is filled in before inserting data"
+                )
+            )
+            
+        }
+        
+        refresh()
+        
+    })
+    
+    output$ent_tbl_activity <- renderDataTable({
+        
+        DT::datatable(
+            options = list(pageLength = 15),
+            rownames = F,
+            
+            rv$activity %>% 
+                mutate(
+                    SubmissionHour = ifelse(nchar(hour(ImportTimestamp)) == 1, paste0("0", hour(ImportTimestamp)), hour(ImportTimestamp))
+                    ,SubmissionMinute = ifelse(nchar(minute(ImportTimestamp)) == 1, paste0("0", minute(ImportTimestamp)), minute(ImportTimestamp))
+                    ,SubmissionSecond = ifelse(nchar(round(second(ImportTimestamp),0)) == 1, paste0("0", round(hour(ImportTimestamp),0)), round(second(ImportTimestamp), 0))
+                    ,SubmissionDate = date(ImportTimestamp)
+                    ,SubmissionTime = paste(sep = ":", SubmissionHour, SubmissionMinute, SubmissionSecond)
+                    ,Submitted = paste(sep = " ", SubmissionDate, SubmissionTime)
+                ) %>% 
+                arrange(
+                    desc(ImportTimestamp)
+                ) %>% 
+                select(
+                    Name = FullName
+                    ,Submitted
+                )
+        )
         
     })
 
