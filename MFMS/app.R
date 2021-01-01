@@ -108,7 +108,7 @@ ui <- navbarPage(
                                 numericInput(
                                     "ent_weight",
                                     label = "Weight:",
-                                    min = 150,
+                                    min = 0,
                                     max = 350,
                                     step = 0.1,
                                     value = ""
@@ -119,7 +119,7 @@ ui <- navbarPage(
                                 numericInput(
                                     "ent_bmi",
                                     label = "BMI:",
-                                    min = 75,
+                                    min = 0,
                                     max = 180,
                                     step = 0.1,
                                     value = ""
