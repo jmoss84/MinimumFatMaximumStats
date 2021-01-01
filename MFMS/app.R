@@ -219,7 +219,7 @@ ui <- navbarPage(
     ),
     
     tabPanel(
-        "Progress",
+        "Squad Progress",
         fluidPage(
             
             sidebarLayout(
@@ -393,15 +393,27 @@ server <- function(input, output, session) {
             ) %>% 
             ggplot() +
             geom_col(aes(x = 1, y = TotalWeight, fill = StartProgress), color = "white") +
+            geom_hline(yintercept = 1593, size = 1, linetype = "dashed", color = "firebrick") +
             theme_mfms() +
             theme(
-                strip.text = element_text(size = 14, face = "bold")
+                axis.title.x = element_blank()
+                ,axis.title.y = element_text(size = 14, face = "bold")
+                ,axis.text.x = element_blank()
+                ,axis.text.y = element_text(size = 13)
+                ,strip.text = element_text(size = 14, face = "bold")
+            ) +
+            scale_y_continuous(
+                breaks = c(seq(1400, 2000, 100))
+                ,labels = function(x) {paste0(x, " lbs")}
             ) +
             scale_fill_manual(
                 values = c(
                     "Beginning Weight" = "navy"
                     ,"Current Progress" = "goldenrod"
                 )
+            ) +
+            coord_cartesian(
+                ylim = c(1399, 2001)
             ) +
             facet_grid(.~StartProgress)
         
