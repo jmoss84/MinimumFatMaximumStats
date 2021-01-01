@@ -15,6 +15,47 @@ library(DT)
 library(shiny)
 library(shinythemes)
 
+conf <- config::get()
+
+push_data <- function(table, dataframe) {
+    
+    con_str <- conf$con_str
+    
+    con_mfms <- dbConnect(
+        odbc::odbc(),
+        .connection_string = con_str,
+        timeout = 5
+    )
+    
+    dbAppendTable(
+        conn = con_mfms,
+        name = SQL(table),
+        value = dataframe
+    )
+    
+    dbDisconnect(con_mfms)
+    
+}
+
+pull_data <- function(statement) {
+    
+    con_str <- conf$con_str
+    
+    con_mfms <- dbConnect(
+        odbc::odbc(),
+        .connection_string = con_str,
+        timeout = 5
+    )
+    
+    dbGetQuery(
+        conn = con_mfms,
+        statement = statement
+    )
+    
+    dbDisconnect(con_mfms)
+    
+}
+
 ui <- navbarPage(
     "Minimum Fat, Maximum Stats",
     
@@ -136,16 +177,26 @@ ui <- navbarPage(
                                     step = 0.05,
                                     value = ""
                                 )
+                            ),
+                            column(
+                                width = 2,
+                                br(),
+                                actionButton(
+                                    "ent_go_submit",
+                                    label = "Submit",
+                                    icon = icon("check")
+                                )
                             )
-                        )
+                        ),
+                        hr()
                     ),
                     column(
                         width = 4,
                         column(
                             width = 12,
-                            h2("Task Table", align = "center"),
+                            h2("Submission Table", align = "center"),
                             hr(),
-                            dataTableOutput("sub_tbl_tasks")
+                            dataTableOutput("")
                         )
                     )
                 )
@@ -155,9 +206,41 @@ ui <- navbarPage(
 
 )
 
-server <- function(input, output) {
+server <- function(input, output, session) {
 
+    rv <- reactiveValues(
+        
+        entries = pull_data("SELECT * FROM dbo.MFMSEntries;"),
+        users = pull_data("SELECT * FROM dbo.MFMSUsers;"),
+        activity = pull_data("SELECT * FROM dbo.MFMSActivity;")
+        
+    )
     
+    refresh <- function() {
+        
+        entries <- pull_data("SELECT * FROM dbo.MFMSEntries;")
+        users <- pull_data("SELECT * FROM dbo.MFMSUsers;")
+        activity <- pull_data("SELECT * FROM dbo.MFMSActivity;")
+        
+    }
+    
+    observeEvent(input$ent_go_submit, {
+        
+        data <- data.frame(
+            UserID = c(input$ent_id)
+            ,Metric = c("Weight", "BMI", "Neck", "Biceps", "Chest", "Waist", "Thigh")
+            ,Value = c(input$ent_weight, input$ent_bmi, input$ent_neck, input$ent_biceps, input$ent_chest, input$ent_waist, input$ent_thigh)
+            ,ReadDate = c(input$ent_date)
+        ) %>% 
+            filter(
+                !is.na(Value)
+                ,Value != ""
+                ,UserID %in% users$UserID
+            )
+        
+        push_data(conf$tables$entries, data)
+        
+    })
 
 }
 
