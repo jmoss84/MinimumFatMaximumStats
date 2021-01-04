@@ -63,6 +63,9 @@ theme_mfms <- function() {
     theme_minimal() +
     theme(
         panel.grid = element_blank()
+        ,axis.title = element_text(size = 14, face = "bold")
+        ,axis.text = element_text(size = 13)
+        ,strip.text = element_text(size = 14, face = "bold")
         ,legend.position = "none"
     )
     
@@ -236,10 +239,13 @@ ui <- navbarPage(
                         width = 3,
                         h2("Progress", align = "center"),
                         hr(),
-                        plotOutput("prog_bar", height = 700)
+                        plotOutput("prog_bar", height = 800)
                     ),
                     column(
-                        width = 9
+                        width = 3,
+                        h2("Progress to Goal", align = "center"),
+                        hr(),
+                        plotOutput("prog_metrics", height = 800)
                     )
                 )
             )
@@ -254,16 +260,18 @@ server <- function(input, output, session) {
     rv <- reactiveValues(
         
         entries = pull_data("SELECT * FROM dbo.MFMSEntries;"),
-        users = pull_data("SELECT * FROM dbo.MFMSUsers;"),
-        activity = pull_data("SELECT * FROM dbo.vw_MFMSActivity;")
+        users = pull_data("SELECT * FROM dbo.MFMSUsers;") %>% mutate(FullName = gsub(" .*$", "", FullName)),
+        activity = pull_data("SELECT * FROM dbo.vw_MFMSActivity;") %>% mutate(FullName = gsub(" .*$", "", FullName)),
+        targets = pull_data("SELECT * FROM dbo.MFMSTargets;")
         
     )
     
     refresh <- function() {
         
         rv$entries <- pull_data("SELECT * FROM dbo.MFMSEntries;")
-        rv$users <- pull_data("SELECT * FROM dbo.MFMSUsers;")
-        rv$activity <- pull_data("SELECT * FROM dbo.vw_MFMSActivity;")
+        rv$users <- pull_data("SELECT * FROM dbo.MFMSUsers;") %>% mutate(FullName = gsub(" .*$", "", FullName))
+        rv$activity <- pull_data("SELECT * FROM dbo.vw_MFMSActivity;") %>% mutate(FullName = gsub(" .*$", "", FullName))
+        rv$targets <- pull_data("SELECT * FROM dbo.MFMSTargets;")
         
         updateTextInput(session, "ent_id", value = "")
         updateDateInput(session, "ent_date", value = today())
@@ -397,10 +405,10 @@ server <- function(input, output, session) {
             theme_mfms() +
             theme(
                 axis.title.x = element_blank()
-                ,axis.title.y = element_text(size = 14, face = "bold")
                 ,axis.text.x = element_blank()
-                ,axis.text.y = element_text(size = 13)
-                ,strip.text = element_text(size = 14, face = "bold")
+            ) +
+            labs(
+                y = "Group Weight"
             ) +
             scale_y_continuous(
                 breaks = c(seq(1400, 2000, 100))
@@ -413,9 +421,102 @@ server <- function(input, output, session) {
                 )
             ) +
             coord_cartesian(
-                ylim = c(1399, 2001)
+                ylim = c(1550, 1921)
             ) +
             facet_grid(.~StartProgress)
+        
+    })
+    
+    output$prog_metrics <- renderPlot({
+        
+        losses <- rv$entries %>% 
+            filter(
+                Metric == "Weight"
+            ) %>% 
+            group_by(
+                UserID
+            ) %>% 
+            arrange(
+                ImportTimestamp
+            ) %>% 
+            slice(
+                1
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$users %>% 
+                    select(
+                        UserID
+                        ,FullName
+                        ,Height
+                    )
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$entries %>% 
+                    filter(
+                        Metric == "Weight"
+                    ) %>% 
+                    group_by(
+                        UserID
+                    ) %>% 
+                    arrange(
+                        ImportTimestamp
+                    ) %>% 
+                    slice(
+                        n()
+                    ) %>% 
+                    select(
+                        UserID
+                        ,CurrentValue = Value
+                        ,LatestRead = ReadDate
+                    )
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$targets %>% 
+                    filter(
+                        TargetMetric == "Weight"
+                    ) %>% 
+                    select(
+                        UserID
+                        ,TargetStart
+                        ,TargetEnd
+                        ,TargetValue
+                    )
+            ) %>% 
+            mutate(
+                TargetDiff = Value - TargetValue
+                ,DiffPerc = (TargetDiff / Value) * 100
+                ,CurrentLoss = Value - CurrentValue
+                ,LossPerc = (CurrentLoss / TargetDiff) * 100
+            )
+        
+        losses %>% 
+            ggplot() +
+            geom_bar(aes(y = FullName, weight = LossPerc, fill = LossPerc), color = "white", width = 0.6) +
+            geom_vline(xintercept = 0, size = 0.8, color = "grey75", linetype = "dotted") +
+            geom_vline(xintercept = 40, size = 0.8, color = "navy", linetype = "dotted") +
+            geom_vline(xintercept = 75, size = 0.8, color = "dodgerblue", linetype = "dotted") +
+            geom_vline(xintercept = 100, size = 0.8, color = "goldenrod", linetype = "dotted") +
+            theme_mfms() +
+            theme(
+                axis.text.x = element_text(margin = margin(b = 5))
+            ) +
+            labs (
+                x = "Percentage of Goal"
+                ,y = ""
+            ) +
+            scale_x_continuous(
+                breaks = c(seq(0, 100, 20))
+                ,labels = function(x) {paste0(x, "%")}
+            ) +
+            scale_fill_gradient(
+                low = "azure2", high = "goldenrod1"
+            ) +
+            coord_cartesian(
+                xlim = c(0, 100)
+            )
         
     })
 
