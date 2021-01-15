@@ -933,8 +933,8 @@ server <- function(input, output, session) {
             ) %>% 
             ggplot() +
             geom_line(aes(x = as_date(ReadDate), y = Value, group = FullName), color = "grey50", size = 0.5) +
-            geom_point(aes(x = as_date(ReadDate), y = Value), color = "black", size = 6) +
-            geom_point(aes(x = as_date(ReadDate), y = Value, color = FullName), size = 5) +
+            geom_point(aes(x = as_date(ReadDate), y = Value), color = "black", size = 4) +
+            geom_point(aes(x = as_date(ReadDate), y = Value, color = FullName), size = 3) +
             theme_mfms() +
             theme(
                 panel.grid.major.y = element_line(size = 0.8, color = "grey80", linetype = "dotted")
@@ -947,7 +947,7 @@ server <- function(input, output, session) {
                 labels = function(x) {paste0(x, "cm")}
             ) +
             lads_colors() +
-            facet_wrap(.~Metric, scales = "free_y")
+            facet_wrap(.~Metric, scales = "free_y", ncol = 2)
         
     })
 
