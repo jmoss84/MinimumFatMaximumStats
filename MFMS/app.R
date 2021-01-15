@@ -551,6 +551,7 @@ server <- function(input, output, session) {
         entries %>% 
             filter(
                 Metric == "Weight"
+                ,wday(ReadDate) == 6
             ) %>% 
             ggplot() +
             geom_line(aes(x = ReadDate, y = Value, group = FullName), color = "grey50", size = 0.5) +
