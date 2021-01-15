@@ -71,6 +71,34 @@ theme_mfms <- function() {
     
 }
 
+lads_colors <- function() {
+    
+    scale_fill_manual(
+        values = c(
+            "Carl" = "#FFD9DA"
+            ,"Frankie" = "#EA638C"
+            ,"Greg" = "#89023E"
+            ,"Jamie" = "#30343F"
+            ,"Luke" = "#1B2021"
+            ,"Matt" = "#D7CF07"
+            ,"Matthew" = "#D98324"
+        )
+    )
+    
+    scale_color_manual(
+        values = c(
+            "Carl" = "#FFD9DA"
+            ,"Frankie" = "#EA638C"
+            ,"Greg" = "#89023E"
+            ,"Jamie" = "#30343F"
+            ,"Luke" = "#1B2021"
+            ,"Matt" = "#D7CF07"
+            ,"Matthew" = "#D98324"
+        )
+    )
+    
+}
+
 ui <- navbarPage(
     "Minimum Fat, Maximum Stats",
     theme = shinytheme("simplex"),
@@ -254,6 +282,48 @@ ui <- navbarPage(
                         plotOutput("prog_lines", height = 400),
                         hr(),
                         plotOutput("prog_goalperc", height = 400)
+                    )
+                )
+            )
+            
+        )
+    ),
+    
+    tabPanel(
+        "Individual",
+        fluidPage(
+            
+            sidebarLayout(
+                sidebarPanel(
+                    width = 2,
+                    hr(),
+                    tags$img(width = "100%", src = "neldo.jpg"),
+                    hr(),
+                    selectInput(
+                        "ind_name",
+                        label = "Shagger:",
+                        choices = c("Carl", "Frankie", "Greg", "Jamie", "Luke", "Matthew", "Matt", ""),
+                        selected = "Carl",
+                        multiple = F
+                    ),
+                    hr()
+                ),
+                
+                mainPanel(
+                    width = 10,
+                    fluidRow(
+                        column(
+                            width = 12,
+                            h2("Individual Progress", align = "center"),
+                            hr(),
+                            h3("Weight", align = "center"),
+                            plotOutput("ind_weight", height = 400),
+                            hr(),
+                            h3("Other Metrics", align = "center"),
+                            hr(),
+                            plotOutput("ind_other", height = 400),
+                            hr()
+                        )
                     )
                 )
             )
@@ -659,6 +729,225 @@ server <- function(input, output, session) {
             scale_fill_brewer(
                 palette = "YlGnBu"
             )
+        
+    })
+    
+    output$ind_weight <- renderPlot({
+        
+        losses <- rv$entries %>% 
+            filter(
+                Metric == "Weight"
+            ) %>% 
+            group_by(
+                UserID
+            ) %>% 
+            arrange(
+                ImportTimestamp
+            ) %>% 
+            slice(
+                1
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$users %>% 
+                    select(
+                        UserID
+                        ,FullName
+                        ,Height
+                    )
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$entries %>% 
+                    filter(
+                        Metric == "Weight"
+                    ) %>% 
+                    group_by(
+                        UserID
+                    ) %>% 
+                    arrange(
+                        ImportTimestamp
+                    ) %>% 
+                    slice(
+                        n()
+                    ) %>% 
+                    select(
+                        UserID
+                        ,CurrentValue = Value
+                        ,LatestRead = ReadDate
+                    )
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$targets %>% 
+                    filter(
+                        TargetMetric == "Weight"
+                    ) %>% 
+                    select(
+                        UserID
+                        ,TargetStart
+                        ,TargetEnd
+                        ,TargetValue
+                    )
+            ) %>% 
+            mutate(
+                TargetDiff = Value - TargetValue
+                ,DiffPerc = (TargetDiff / Value) * 100
+                ,CurrentLoss = Value - CurrentValue
+                ,LossPerc = (CurrentLoss / TargetDiff) * 100
+            )
+        
+        entries <- rv$entries %>% 
+            left_join(
+                by = "UserID",
+                rv$users %>% 
+                    select(
+                        FullName
+                        ,UserID
+                        ,Height
+                    )
+            )
+        
+        entries %>% 
+            filter(
+                Metric == "Weight"
+                ,FullName == input$ind_name
+            ) %>% 
+            left_join(
+                by = "UserID",
+                losses %>% 
+                    select(
+                        UserID
+                        ,TargetValue
+                    )
+            ) %>% 
+            ggplot() +
+            geom_hline(aes(yintercept = min(TargetValue, na.rm = T)), size = 1, linetype = "solid", color = "firebrick") +
+            geom_line(aes(x = as_date(ReadDate), y = Value, group = FullName), color = "grey50", size = 0.5) +
+            geom_point(aes(x = as_date(ReadDate), y = Value), color = "black", size = 6) +
+            geom_point(aes(x = as_date(ReadDate), y = Value, color = FullName), size = 5) +
+            theme_mfms() +
+            theme(
+                panel.grid.major.y = element_line(size = 0.8, color = "grey80", linetype = "dotted")
+            ) +
+            labs(
+                x = "Time"
+                ,y = "Weight"
+            ) +
+            scale_y_continuous(
+                breaks = c(seq(0, 400, 5))
+                ,labels = function(x) {paste0(x, " lbs")}
+            ) +
+            lads_colors()
+        
+    })
+    
+    output$ind_other <- renderPlot({
+        
+        losses <- rv$entries %>% 
+            filter(
+                Metric == "Weight"
+            ) %>% 
+            group_by(
+                UserID
+            ) %>% 
+            arrange(
+                ImportTimestamp
+            ) %>% 
+            slice(
+                1
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$users %>% 
+                    select(
+                        UserID
+                        ,FullName
+                        ,Height
+                    )
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$entries %>% 
+                    filter(
+                        Metric == "Weight"
+                    ) %>% 
+                    group_by(
+                        UserID
+                    ) %>% 
+                    arrange(
+                        ImportTimestamp
+                    ) %>% 
+                    slice(
+                        n()
+                    ) %>% 
+                    select(
+                        UserID
+                        ,CurrentValue = Value
+                        ,LatestRead = ReadDate
+                    )
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$targets %>% 
+                    filter(
+                        TargetMetric == "Weight"
+                    ) %>% 
+                    select(
+                        UserID
+                        ,TargetStart
+                        ,TargetEnd
+                        ,TargetValue
+                    )
+            ) %>% 
+            mutate(
+                TargetDiff = Value - TargetValue
+                ,DiffPerc = (TargetDiff / Value) * 100
+                ,CurrentLoss = Value - CurrentValue
+                ,LossPerc = (CurrentLoss / TargetDiff) * 100
+            )
+        
+        entries <- rv$entries %>% 
+            left_join(
+                by = "UserID",
+                rv$users %>% 
+                    select(
+                        FullName
+                        ,UserID
+                        ,Height
+                    )
+            )
+        
+        entries %>% 
+            filter(
+                !Metric %in% c("Weight", "BMI")
+                ,FullName == input$ind_name
+            ) %>% 
+            left_join(
+                by = "UserID",
+                losses %>% 
+                    select(
+                        UserID
+                        ,TargetValue
+                    )
+            ) %>% 
+            ggplot() +
+            geom_line(aes(x = as_date(ReadDate), y = Value, group = FullName), color = "grey50", size = 0.5) +
+            geom_point(aes(x = as_date(ReadDate), y = Value), color = "black", size = 6) +
+            geom_point(aes(x = as_date(ReadDate), y = Value, color = FullName), size = 5) +
+            theme_mfms() +
+            theme(
+                panel.grid.major.y = element_line(size = 0.8, color = "grey80", linetype = "dotted")
+            ) +
+            labs(
+                x = "Time"
+                ,y = "Measurement"
+            ) +
+            scale_y_continuous(
+                labels = function(x) {paste0(x, "cm")}
+            ) +
+            lads_colors() +
+            facet_wrap(.~Metric, scales = "free_y")
         
     })
 
