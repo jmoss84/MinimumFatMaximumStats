@@ -558,7 +558,8 @@ server <- function(input, output, session) {
             geom_point(aes(x = ReadDate, y = Value, color = FullName), size = 2.5) +
             theme_mfms() +
             theme(
-                axis.text = element_blank()
+                axis.title = element_blank()
+                ,axis.text = element_blank()
             ) +
             scale_color_brewer(
                 palette = "YlGnBu"
