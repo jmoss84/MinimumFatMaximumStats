@@ -61,13 +61,13 @@ pull_data <- function(statement) {
 theme_mfms <- function() {
     
     theme_minimal() +
-    theme(
-        panel.grid = element_blank()
-        ,axis.title = element_text(size = 14, face = "bold")
-        ,axis.text = element_text(size = 13)
-        ,strip.text = element_text(size = 14, face = "bold")
-        ,legend.position = "none"
-    )
+        theme(
+            panel.grid = element_blank()
+            ,axis.title = element_text(face = "bold", size = 14)
+            ,axis.text = element_text(size = 13)
+            ,strip.text = element_text(face = "bold", size = 14)
+            ,legend.position = "none"
+        )
     
 }
 
@@ -120,7 +120,7 @@ ui <- navbarPage(
                                 width = 4,
                                 numericInput(
                                     "ent_weight",
-                                    label = "Weight:",
+                                    label = "Weight (lbs):",
                                     min = 0,
                                     max = 350,
                                     step = 0.1,
@@ -144,7 +144,7 @@ ui <- navbarPage(
                                 width = 2,
                                 numericInput(
                                     "ent_neck",
-                                    label = "Neck:",
+                                    label = "Neck (cm):",
                                     min = 0,
                                     max = 150,
                                     step = 0.05,
@@ -155,7 +155,7 @@ ui <- navbarPage(
                                 width = 2,
                                 numericInput(
                                     "ent_biceps",
-                                    label = "Biceps:",
+                                    label = "Biceps (cm):",
                                     min = 0,
                                     max = 150,
                                     step = 0.05,
@@ -166,7 +166,7 @@ ui <- navbarPage(
                                 width = 2,
                                 numericInput(
                                     "ent_chest",
-                                    label = "Chest:",
+                                    label = "Chest (cm):",
                                     min = 0,
                                     max = 150,
                                     step = 0.05,
@@ -177,7 +177,7 @@ ui <- navbarPage(
                                 width = 2,
                                 numericInput(
                                     "ent_waist",
-                                    label = "Waist:",
+                                    label = "Waist (cm):",
                                     min = 0,
                                     max = 150,
                                     step = 0.05,
@@ -188,7 +188,7 @@ ui <- navbarPage(
                                 width = 2,
                                 numericInput(
                                     "ent_thigh",
-                                    label = "Thigh:",
+                                    label = "Thigh (cm):",
                                     min = 0,
                                     max = 150,
                                     step = 0.05,
@@ -245,7 +245,15 @@ ui <- navbarPage(
                         width = 3,
                         h2("Progress to Goal", align = "center"),
                         hr(),
-                        plotOutput("prog_metrics", height = 800)
+                        plotOutput("prog_totals", height = 800)
+                    )
+                    ,column(
+                        width = 6,
+                        h2("Individual Progress", align = "center"),
+                        hr(),
+                        plotOutput("prog_lines", height = 400),
+                        hr(),
+                        plotOutput("prog_goalperc", height = 400)
                     )
                 )
             )
@@ -303,6 +311,13 @@ server <- function(input, output, session) {
         
         if (length(data$UserID) > 0) {
             
+            showModal(
+                modalDialog(
+                    title = "Valid Data Entry",
+                    "Ok, you've filled in the right data - now for fuck's sake just click ok, wait a minute and don't click again. It should take around 5 seconds and your data will be in."
+                )
+            )
+            
             push_data(conf$tables$entries, data)
             
             act <- data %>% 
@@ -318,7 +333,7 @@ server <- function(input, output, session) {
             showModal(
                 modalDialog(
                     title = "Invalid Data Entry",
-                    "Please check that your ID is correct and that at least one field is filled in before inserting data"
+                    "Please check that your ID is correct and that at least one field is filled in before inserting data."
                 )
             )
             
@@ -427,7 +442,7 @@ server <- function(input, output, session) {
         
     })
     
-    output$prog_metrics <- renderPlot({
+    output$prog_goalperc <- renderPlot({
         
         losses <- rv$entries %>% 
             filter(
@@ -494,20 +509,20 @@ server <- function(input, output, session) {
         
         losses %>% 
             ggplot() +
-            geom_bar(aes(y = FullName, weight = LossPerc, fill = LossPerc), color = "white", width = 0.6) +
-            geom_vline(xintercept = 0, size = 0.8, color = "grey75", linetype = "dotted") +
-            geom_vline(xintercept = 40, size = 0.8, color = "navy", linetype = "dotted") +
-            geom_vline(xintercept = 75, size = 0.8, color = "dodgerblue", linetype = "dotted") +
-            geom_vline(xintercept = 100, size = 0.8, color = "goldenrod", linetype = "dotted") +
+            geom_bar(aes(x = FullName, weight = LossPerc, fill = LossPerc), color = "white", width = 0.6) +
+            geom_hline(yintercept = 0, size = 0.8, color = "grey75", linetype = "dotted") +
+            geom_hline(yintercept = 40, size = 0.8, color = "navy", linetype = "dotted") +
+            geom_hline(yintercept = 75, size = 0.8, color = "dodgerblue", linetype = "dotted") +
+            geom_hline(yintercept = 100, size = 0.8, color = "goldenrod", linetype = "dotted") +
             theme_mfms() +
             theme(
-                axis.text.x = element_text(margin = margin(b = 5))
+                axis.text.y = element_text(margin = margin(b = 5))
             ) +
             labs (
-                x = "Percentage of Goal"
-                ,y = ""
+                x = ""
+                ,y = "Percentage of Goal"
             ) +
-            scale_x_continuous(
+            scale_y_continuous(
                 breaks = c(seq(0, 100, 20))
                 ,labels = function(x) {paste0(x, "%")}
             ) +
@@ -515,7 +530,132 @@ server <- function(input, output, session) {
                 low = "azure2", high = "goldenrod1"
             ) +
             coord_cartesian(
-                xlim = c(0, 100)
+                ylim = c(0, 100)
+            )
+        
+    })
+    
+    output$prog_lines <- renderPlot({
+        
+        entries <- rv$entries %>% 
+            left_join(
+                by = "UserID",
+                rv$users %>% 
+                    select(
+                        FullName
+                        ,UserID
+                        ,Height
+                    )
+            )
+        
+        entries %>% 
+            filter(
+                Metric == "Weight"
+            ) %>% 
+            ggplot() +
+            geom_line(aes(x = ReadDate, y = Value, group = FullName), color = "grey50", size = 0.5) +
+            geom_point(aes(x = ReadDate, y = Value), color = "black", size = 3) +
+            geom_point(aes(x = ReadDate, y = Value, color = FullName), size = 2.5) +
+            theme_mfms() +
+            theme(
+                axis.text = element_blank()
+            ) +
+            scale_color_brewer(
+                palette = "YlGnBu"
+            ) +
+            facet_wrap(.~FullName, scales = "free_y")
+        
+    })
+    
+    output$prog_totals <- renderPlot({
+        
+        losses <- rv$entries %>% 
+            filter(
+                Metric == "Weight"
+            ) %>% 
+            group_by(
+                UserID
+            ) %>% 
+            arrange(
+                ImportTimestamp
+            ) %>% 
+            slice(
+                1
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$users %>% 
+                    select(
+                        UserID
+                        ,FullName
+                        ,Height
+                    )
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$entries %>% 
+                    filter(
+                        Metric == "Weight"
+                    ) %>% 
+                    group_by(
+                        UserID
+                    ) %>% 
+                    arrange(
+                        ImportTimestamp
+                    ) %>% 
+                    slice(
+                        n()
+                    ) %>% 
+                    select(
+                        UserID
+                        ,CurrentValue = Value
+                        ,LatestRead = ReadDate
+                    )
+            ) %>% 
+            left_join(
+                by = "UserID",
+                rv$targets %>% 
+                    filter(
+                        TargetMetric == "Weight"
+                    ) %>% 
+                    select(
+                        UserID
+                        ,TargetStart
+                        ,TargetEnd
+                        ,TargetValue
+                    )
+            ) %>% 
+            mutate(
+                TargetDiff = Value - TargetValue
+                ,DiffPerc = (TargetDiff / Value) * 100
+                ,CurrentLoss = Value - CurrentValue
+                ,LossPerc = (CurrentLoss / TargetDiff) * 100
+            )
+        
+        losses %>% 
+            ggplot(aes(y = reorder(FullName, TargetDiff))) +
+            geom_segment(aes(x = CurrentLoss, xend = TargetDiff, yend = reorder(FullName, TargetDiff)), size = 0.8, linetype = "dashed") +
+            geom_bar(aes(weight = CurrentLoss, fill = FullName), color = "black") +
+            geom_point(aes(x = TargetDiff), color = "black", size = 6) +
+            geom_point(aes(x = TargetDiff, color = FullName), size = 5) +
+            theme_mfms() +
+            theme(
+                panel.grid.major.x = element_line(size = 0.5, color = "grey80", linetype = "dotted")
+                ,axis.text.y = element_text(margin = margin(r = -15))
+                ,axis.text.x = element_text(margin = margin(t = -5, b = 5))
+            ) +
+            labs(
+                y = ""
+            ) +
+            scale_x_continuous(
+                breaks = c(seq(0, 100, 10)),
+                labels = function(x) {paste0(x, " lbs")}
+            ) +
+            scale_color_brewer(
+                palette = "YlGnBu"
+            ) +
+            scale_fill_brewer(
+                palette = "YlGnBu"
             )
         
     })
