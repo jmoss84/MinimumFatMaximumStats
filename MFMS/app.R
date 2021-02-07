@@ -337,19 +337,19 @@ server <- function(input, output, session) {
 
     rv <- reactiveValues(
         
-        entries = pull_data("SELECT * FROM dbo.MFMSEntries;"),
-        users = pull_data("SELECT * FROM dbo.MFMSUsers;") %>% mutate(FullName = gsub(" .*$", "", FullName)),
-        activity = pull_data("SELECT * FROM dbo.vw_MFMSActivity;") %>% mutate(FullName = gsub(" .*$", "", FullName)),
-        targets = pull_data("SELECT * FROM dbo.MFMSTargets;")
+        entries = pull_data(conf$queries$all_entries),
+        users = pull_data(conf$queries$all_users) %>% mutate(FullName = gsub(" .*$", "", FullName)),
+        activity = pull_data(conf$queries$all_activity) %>% mutate(FullName = gsub(" .*$", "", FullName)),
+        targets = pull_data(conf$queries$all_targets)
         
     )
     
     refresh <- function() {
         
-        rv$entries <- pull_data("SELECT * FROM dbo.MFMSEntries;")
-        rv$users <- pull_data("SELECT * FROM dbo.MFMSUsers;") %>% mutate(FullName = gsub(" .*$", "", FullName))
-        rv$activity <- pull_data("SELECT * FROM dbo.vw_MFMSActivity;") %>% mutate(FullName = gsub(" .*$", "", FullName))
-        rv$targets <- pull_data("SELECT * FROM dbo.MFMSTargets;")
+        rv$entries <- pull_data(conf$queries$all_entries)
+        rv$users <- pull_data(conf$queries$all_users) %>% mutate(FullName = gsub(" .*$", "", FullName))
+        rv$activity <- pull_data(conf$queries$all_activity) %>% mutate(FullName = gsub(" .*$", "", FullName))
+        rv$targets <- pull_data(conf$queries$all_targets)
         
         updateTextInput(session, "ent_id", value = "")
         updateDateInput(session, "ent_date", value = today())
